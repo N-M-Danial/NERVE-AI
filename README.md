@@ -1,4 +1,4 @@
-# Traffic LOS Intelligence Platform
+# FlowLab Console v0.1.0
 
 Production-grade ML system for hourly traffic Level-of-Service prediction.
 
