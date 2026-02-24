@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FlowLab Console v0.1.0</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0b0c0e;--surface:#111318;--surface2:#161a1f;--surface3:#1c2128;
+  --border:#222830;--border2:#2a3140;
+  --accent:#00e5a0;--accent-dim:rgba(0,229,160,0.12);--accent-glow:rgba(0,229,160,0.08);
+  --yellow:#f0c040;--orange:#f07840;--red:#e04040;--blue:#4090e0;
+  --text:#e8ecf0;--text2:#8898a8;--text3:#505868;
+  --los-a:#00e5a0;--los-b:#80d040;--los-c:#f0c040;--los-d:#f09040;--los-e:#e05050;--los-f:#c02020;
+  --mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif;
+  --h:30px;--row:22px;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* ── TOPBAR ── */
+#topbar{
+  height:36px;background:var(--surface);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 12px;gap:0;flex-shrink:0;
+  font-family:var(--mono);
+}
+#topbar .logo{font-size:0.786rem;font-weight:600;color:var(--accent);letter-spacing:0.08em;margin-right:16px;white-space:nowrap}
+#topbar .logo span{color:var(--text3);font-weight:400}
+.topbar-sep{width:1px;height:18px;background:var(--border2);margin:0 10px}
+.topbar-kpi{display:flex;align-items:baseline;gap:4px;margin-right:14px;white-space:nowrap}
+.topbar-kpi .k{font-size:0.643rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.1em}
+.topbar-kpi .v{font-size:0.857rem;font-weight:600;color:var(--text)}
+.topbar-kpi .v.accent{color:var(--accent)}
+.topbar-kpi .v.warn{color:var(--orange)}
+.spacer{flex:1}
+.sys-badge{padding:2px 8px;border-radius:2px;font-size:0.643rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;border:1px solid}
+.sys-badge.ok{background:var(--accent-dim);color:var(--accent);border-color:rgba(0,229,160,0.3)}
+.sys-badge.warn{background:rgba(240,192,64,0.1);color:var(--yellow);border-color:rgba(240,192,64,0.3)}
+.sys-badge.err{background:rgba(224,64,64,0.1);color:var(--red);border-color:rgba(224,64,64,0.3)}
+.ver-chip{font-size:0.643rem;color:var(--text3);font-family:var(--mono);margin-left:6px}
+
+/* ── NAV TABS ── */
+#navtabs{
+  height:28px;background:var(--surface);border-bottom:1px solid var(--border);
+  display:flex;align-items:stretch;padding:0 12px;gap:0;flex-shrink:0;
+}
+.tab{
+  padding:0 14px;font-size:0.714rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;
+  color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;
+  display:flex;align-items:center;transition:color 0.1s;white-space:nowrap;
+}
+.tab:hover{color:var(--text2)}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab-dot{width:5px;height:5px;border-radius:50%;margin-right:5px;background:var(--border2)}
+.tab.active .tab-dot{background:var(--accent)}
+
+/* ── MAIN CONTENT ── */
+#content{flex:1;overflow:hidden;display:flex;flex-direction:column}
+.panel{display:none;flex:1;overflow:hidden}
+.panel.active{display:flex;flex-direction:column}
+
+/* ── LAYOUT PRIMITIVES ── */
+.pane-row{display:flex;flex:1;overflow:hidden;min-height:0}
+.pane{border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.pane:last-child{border-right:none}
+.pane-header{
+  height:26px;background:var(--surface2);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 10px;gap:6px;flex-shrink:0;
+}
+.pane-title{font-size:0.643rem;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--text3)}
+.pane-body{flex:1;overflow-y:auto;overflow-x:hidden;padding:8px}
+.pane-body::-webkit-scrollbar{width:4px}
+.pane-body::-webkit-scrollbar-track{background:transparent}
+.pane-body::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+
+/* ── MICRO TABLE ── */
+table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:0.786rem}
+th{height:20px;padding:0 6px;text-align:left;font-size:0.643rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3);border-bottom:1px solid var(--border);white-space:nowrap;position:sticky;top:0;background:var(--surface)}
+td{height:var(--row);padding:0 6px;border-bottom:1px solid rgba(34,40,48,0.7);white-space:nowrap;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--accent-glow)}
+.tr{text-align:right}
+.num{font-family:var(--mono)}
+
+/* ── LOS CHIP ── */
+.los{display:inline-flex;align-items:center;justify-content:center;width:18px;height:14px;border-radius:2px;font-weight:700;font-size:0.643rem;font-family:var(--mono)}
+.los-A{background:rgba(0,229,160,0.15);color:#00e5a0}
+.los-B{background:rgba(128,208,64,0.15);color:#80d040}
+.los-C{background:rgba(240,192,64,0.15);color:#f0c040}
+.los-D{background:rgba(240,144,64,0.15);color:#f09040}
+.los-E{background:rgba(224,80,80,0.15);color:#e05050}
+.los-F{background:rgba(192,32,32,0.2);color:#f06060}
+
+/* ── FORM CONTROLS ── */
+.ctrl-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap}
+.ctrl-group{display:flex;flex-direction:column;gap:2px}
+.ctrl-label{font-size:0.643rem;color:var(--text3);letter-spacing:0.08em;text-transform:uppercase}
+input,select{
+  background:var(--surface3);border:1px solid var(--border2);border-radius:2px;
+  padding:3px 6px;color:var(--text);font-size:0.786rem;font-family:var(--mono);
+  outline:none;height:24px;transition:border-color 0.1s;
+}
+input:focus,select:focus{border-color:var(--accent)}
+input[type=number]{width:72px}
+input[type=date]{width:130px}
+
+/* ── TOGGLE ── */
+.toggle-wrap{display:flex;align-items:center;gap:5px;height:24px}
+.tog{width:30px;height:16px;background:var(--surface3);border:1px solid var(--border2);border-radius:8px;position:relative;cursor:pointer;transition:background 0.15s;flex-shrink:0}
+.tog.on{background:var(--accent);border-color:var(--accent)}
+.tog::after{content:'';position:absolute;width:10px;height:10px;background:#555;border-radius:50%;top:2px;left:2px;transition:left 0.15s}
+.tog.on::after{left:16px;background:#000}
+.tog-label{font-size:0.714rem;color:var(--text2)}
+
+/* ── BUTTONS ── */
+.btn{
+  display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 10px;
+  border-radius:2px;border:none;cursor:pointer;font-size:0.714rem;font-weight:600;
+  letter-spacing:0.06em;text-transform:uppercase;transition:all 0.1s;font-family:var(--sans);
+}
+.btn-primary{background:var(--accent);color:#000}
+.btn-primary:hover{filter:brightness(1.1)}
+.btn-secondary{background:var(--surface3);color:var(--text2);border:1px solid var(--border2)}
+.btn-secondary:hover{border-color:var(--accent);color:var(--accent)}
+.btn-ghost{background:transparent;color:var(--text3);border:1px solid var(--border)}
+.btn-ghost:hover{color:var(--text2);border-color:var(--border2)}
+.btn[disabled]{opacity:0.3;cursor:not-allowed}
+
+/* ── LOG BOX ── */
+.logbox{
+  background:var(--bg);border:1px solid var(--border);border-radius:2px;
+  padding:6px 8px;font-family:var(--mono);font-size:0.714rem;
+  flex:1;overflow-y:auto;line-height:1.8;color:var(--text3);min-height:0;
+}
+.logbox::-webkit-scrollbar{width:3px}
+.logbox::-webkit-scrollbar-thumb{background:var(--border2)}
+.log-ok{color:var(--accent)}.log-warn{color:var(--yellow)}.log-err{color:var(--red)}.log-info{color:var(--text3)}
+
+/* ── METRIC ROW ── */
+.mrow{display:flex;justify-content:space-between;align-items:center;height:22px;border-bottom:1px solid rgba(34,40,48,0.5)}
+.mrow:last-child{border-bottom:none}
+.mlbl{font-size:0.714rem;color:var(--text3)}
+.mval{font-size:0.786rem;font-weight:600;color:var(--text);font-family:var(--mono)}
+
+/* ── ALERT STRIP ── */
+.alert{display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:2px;font-size:0.714rem;margin-bottom:6px}
+.alert-ok{background:var(--accent-dim);border:1px solid rgba(0,229,160,0.2);color:var(--accent)}
+.alert-warn{background:rgba(240,192,64,0.08);border:1px solid rgba(240,192,64,0.2);color:var(--yellow)}
+.alert-err{background:rgba(224,64,64,0.08);border:1px solid rgba(224,64,64,0.2);color:var(--red)}
+
+/* ── PROGRESS BAR ── */
+.pbar{height:3px;background:var(--border);border-radius:1px;overflow:hidden;margin-top:2px}
+.pbar-fill{height:100%;border-radius:1px;transition:width 0.5s ease}
+
+/* ── HEATMAP ── */
+.hm-row{display:flex;align-items:center;gap:2px;margin-bottom:2px}
+.hm-lbl{font-size:0.643rem;color:var(--text3);text-align:right;width:120px;flex-shrink:0;font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:4px}
+.hm-cell{width:22px;height:14px;border-radius:1px;cursor:pointer;position:relative;flex-shrink:0}
+.hm-cell:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 3px);left:50%;transform:translateX(-50%);background:var(--surface3);border:1px solid var(--border2);border-radius:2px;padding:2px 6px;font-size:0.643rem;white-space:nowrap;z-index:99;pointer-events:none;color:var(--text);font-family:var(--mono)}
+.hm-hr-labels{display:flex;gap:2px;margin-bottom:2px;padding-left:124px}
+.hm-hr-lbl{width:22px;flex-shrink:0;text-align:center;font-size:0.571rem;color:var(--text3);font-family:var(--mono)}
+
+/* ── DRIFT TABLE ── */
+.drift-pill{padding:1px 5px;border-radius:2px;font-size:0.643rem;font-weight:600;font-family:var(--mono)}
+.drift-stable{background:rgba(0,229,160,0.1);color:var(--accent)}
+.drift-slight{background:rgba(240,192,64,0.1);color:var(--yellow)}
+.drift-significant{background:rgba(224,64,64,0.1);color:var(--red)}
+
+/* ── IMP BAR ── */
+.imp-row{margin-bottom:5px}
+.imp-row-hdr{display:flex;justify-content:space-between;margin-bottom:2px}
+.imp-name{font-size:0.714rem;font-family:var(--mono)}
+.imp-val{font-size:0.643rem;color:var(--text3);font-family:var(--mono)}
+
+/* ── STATUS BAR ── */
+#statusbar{
+  height:20px;background:var(--surface);border-top:1px solid var(--border);
+  display:flex;align-items:center;padding:0 12px;gap:12px;flex-shrink:0;
+  font-family:var(--mono);font-size:0.643rem;color:var(--text3);
+}
+#statusbar .sb-item{display:flex;align-items:center;gap:4px}
+#statusbar .sb-dot{width:6px;height:6px;border-radius:50%;background:var(--accent)}
+#statusbar .sb-dot.warn{background:var(--orange)}
+#statusbar .sb-dot.err{background:var(--red)}
+
+/* ── SPIN ── */
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{animation:spin 0.7s linear infinite;display:inline-block}
+
+/* ── SECTION HEADER ── */
+.sec-hdr{
+  height:40px;background:var(--surface2);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 10px;gap:8px;flex-shrink:0;
+}
+.sec-hdr-title{font-size:0.643rem;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--text3)}
+.sec-hdr .spacer{flex:1}
+
+/* ── SCROLLABLE CONTENT AREA ── */
+.scroll-content{flex:1;overflow-y:auto;overflow-x:hidden;padding:8px 10px}
+.scroll-content::-webkit-scrollbar{width:4px}
+.scroll-content::-webkit-scrollbar-thumb{background:var(--border2)}
+
+/* ── GRID ── */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.block{background:var(--surface2);border:1px solid var(--border);border-radius:2px;padding:8px}
+.block-title{font-size:0.643rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3);margin-bottom:6px}
+
+@media(max-width:900px){.g2,.g3{grid-template-columns:1fr}.pane-row{flex-direction:column}}
+</style>
+</head>
+<body>
+
+<!-- ── TOPBAR ── -->
+<div id="topbar">
+  <div class="logo">FLOWLAB CONSOLE<span></span> <span style="color:var(--border2)">·</span> <span>v0.1.0</span></div>
+  <div class="topbar-sep"></div>
+  <div class="topbar-kpi"><span class="k">Roads</span><span class="v accent" id="stat-roads">14</span></div>
+  <div class="topbar-kpi"><span class="k">V/C MAE</span><span class="v" id="stat-vc-mae">—</span></div>
+  <div class="topbar-kpi"><span class="k">LOS Acc</span><span class="v" id="stat-los-acc">—</span></div>
+  <div class="topbar-kpi"><span class="k">Congested</span><span class="v warn" id="stat-congested">—</span></div>
+  <div class="spacer"></div>
+  <span id="model-version-badge" class="sys-badge warn">No Model</span>
+  <span id="system-status-badge" class="sys-badge ok" style="margin-left:6px">ONLINE</span>
+</div>
+
+<!-- ── NAVTABS ── -->
+<div id="navtabs">
+  <div class="tab active" onclick="switchTab('dashboard',this)"><div class="tab-dot"></div>Dashboard</div>
+  <div class="tab" onclick="switchTab('train',this)"><div class="tab-dot"></div>Train & Tune</div>
+  <div class="tab" onclick="switchTab('predict',this)"><div class="tab-dot"></div>Predict</div>
+  <div class="tab" onclick="switchTab('explain',this)"><div class="tab-dot"></div>Explain</div>
+  <div class="tab" onclick="switchTab('monitor',this)"><div class="tab-dot"></div>Monitor</div>
+</div>
+
+<!-- ── CONTENT ── -->
+<div id="content">
+
+<!-- ══ DASHBOARD ══ -->
+<div id="panel-dashboard" class="panel active">
+  <div class="pane-row">
+    <!-- Left: summary table -->
+    <div class="pane" style="width:520px;flex-shrink:0">
+      <div class="pane-header">
+        <div class="pane-title">Prediction Summary</div>
+        <span id="pred-date-label" style="font-size:0.643rem;color:var(--text3);font-family:var(--mono)"></span>
+      </div>
+      <div style="flex:1;overflow-y:auto">
+        <table id="summary-table">
+          <thead>
+            <tr>
+              <th>Road</th>
+              <th class="tr">Daily</th>
+              <th class="tr">Peak V/C</th>
+              <th>Peak Hr</th>
+              <th class="tr">Avg V/C</th>
+              <th>LOS</th>
+            </tr>
+          </thead>
+          <tbody id="summary-tbody">
+            <tr><td colspan="6" style="text-align:center;color:var(--text3);padding:20px 0;font-size:0.714rem">Run a prediction to see results</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <!-- Right: heatmap -->
+    <div class="pane" style="flex:1">
+      <div class="pane-header">
+        <div class="pane-title">V/C Heatmap · Hour × Road</div>
+        <div class="spacer"></div>
+        <div style="display:flex;gap:8px;align-items:center;font-size:0.643rem;font-family:var(--mono);color:var(--text3)">
+          <span style="display:flex;align-items:center;gap:3px"><span style="width:8px;height:8px;border-radius:1px;background:#15532a;display:inline-block"></span>A</span>
+          <span style="display:flex;align-items:center;gap:3px"><span style="width:8px;height:8px;border-radius:1px;background:#365314;display:inline-block"></span>B</span>
+          <span style="display:flex;align-items:center;gap:3px"><span style="width:8px;height:8px;border-radius:1px;background:#713f12;display:inline-block"></span>C</span>
+          <span style="display:flex;align-items:center;gap:3px"><span style="width:8px;height:8px;border-radius:1px;background:#7c2d12;display:inline-block"></span>D/E</span>
+          <span style="display:flex;align-items:center;gap:3px"><span style="width:8px;height:8px;border-radius:1px;background:#450a0a;display:inline-block"></span>F</span>
+        </div>
+      </div>
+      <div class="pane-body" id="heatmap-wrap" style="display:flex;align-items:flex-start">
+        <div style="color:var(--text3);font-size:0.714rem;padding:30px 0;width:100%;text-align:center">Run a prediction to see heatmap</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TRAIN ══ -->
+<div id="panel-train" class="panel">
+  <div class="pane-row">
+    <!-- Config pane -->
+    <div class="pane" style="width:280px;flex-shrink:0">
+      <div class="pane-header"><div class="pane-title">Configuration</div></div>
+      <div class="pane-body">
+        <div class="ctrl-group" style="margin-bottom:8px">
+          <div class="ctrl-label">Hyperparameter Tuning</div>
+          <div class="toggle-wrap">
+            <div class="tog" id="tune-toggle" onclick="toggleTune()"></div>
+            <span class="tog-label" id="tune-label">Disabled</span>
+          </div>
+        </div>
+        <div id="tune-options" style="display:none;margin-bottom:8px">
+          <div class="ctrl-row">
+            <div class="ctrl-group">
+              <div class="ctrl-label">n_iter</div>
+              <input type="number" id="n-iter" value="20" min="5" max="100">
+            </div>
+            <div class="ctrl-group">
+              <div class="ctrl-label">CV Folds</div>
+              <input type="number" id="n-splits" value="5" min="3" max="10">
+            </div>
+          </div>
+          <div class="alert alert-warn" style="margin-bottom:0">Obj: 0.7×V/C MAE − 0.3×LOS Acc</div>
+        </div>
+        <div class="ctrl-group" style="margin-bottom:10px">
+          <div class="ctrl-label">Retrain on Full Data</div>
+          <div class="toggle-wrap">
+            <div class="tog on" id="retrain-toggle" onclick="toggleRetrain()"></div>
+            <span class="tog-label" id="retrain-label">Yes</span>
+          </div>
+        </div>
+        <button class="btn btn-primary" id="train-btn" onclick="runTrain()" style="width:100%;justify-content:center">▶ Start Training</button>
+      </div>
+    </div>
+    <!-- Log pane -->
+    <div class="pane" style="width:300px;flex-shrink:0">
+      <div class="pane-header"><div class="pane-title">Training Log</div></div>
+      <div class="pane-body" style="display:flex;flex-direction:column">
+        <div class="logbox" id="train-log">Waiting to start...</div>
+      </div>
+    </div>
+    <!-- Metrics pane -->
+    <div class="pane" style="flex:1">
+      <div class="pane-header"><div class="pane-title">Evaluation Metrics</div></div>
+      <div class="pane-body">
+        <div class="g3" style="margin-bottom:8px" id="metrics-cards">
+          <div class="block" id="card-vc">
+            <div class="block-title">V/C Ratio</div>
+            <div id="vc-metrics"><div style="color:var(--text3);font-size:0.714rem">Train to see metrics</div></div>
+          </div>
+          <div class="block" id="card-los">
+            <div class="block-title">LOS Classification</div>
+            <div id="los-metrics"></div>
+          </div>
+          <div class="block" id="card-per-target">
+            <div class="block-title">Per-Vehicle MAE</div>
+            <div id="per-target-metrics"></div>
+          </div>
+        </div>
+        <div class="block" id="confusion-card" style="display:none">
+          <div class="block-title">Confusion Matrix (Test Set)</div>
+          <div style="overflow-x:auto"><table id="confusion-table"></table></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PREDICT ══ -->
+<div id="panel-predict" class="panel">
+  <!-- Controls row -->
+  <div class="sec-hdr">
+    <div class="ctrl-row" style="margin-bottom:0;gap:8px">
+      <div class="ctrl-group">
+        <div class="ctrl-label">Date</div>
+        <input type="date" id="pred-date" value="2026-02-18">
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-label">Version</div>
+        <select id="pred-version" style="width:140px"><option value="latest">latest</option></select>
+      </div>
+      <button class="btn btn-primary" id="predict-btn" onclick="runPredict()">Generate</button>
+      <button class="btn btn-secondary" id="download-btn" onclick="downloadExcel()" style="display:none">↓ Excel</button>
+    </div>
+    <div class="spacer"></div>
+    <div id="predict-status-inline" style="font-size:0.643rem;font-family:var(--mono);color:var(--text3)"></div>
+  </div>
+  <!-- Road select -->
+  <div class="sec-hdr" style="border-top:none">
+    <div class="ctrl-group" style="flex-direction:row;align-items:center;gap:6px">
+      <div class="ctrl-label">Road</div>
+      <select id="road-select" onchange="renderHourTable()" style="width:260px">
+        <option value="">— run prediction first —</option>
+      </select>
+    </div>
+  </div>
+  <!-- Hour table -->
+  <div style="flex:1;overflow-y:auto">
+    <table id="hour-table">
+      <thead>
+        <tr>
+          <th>Hour</th><th class="tr">Car</th><th class="tr">Moto</th><th class="tr">Van</th>
+          <th class="tr">Med Lorry</th><th class="tr">Hvy Lorry</th><th class="tr">Bus</th>
+          <th class="tr">Total</th><th class="tr">V/C</th><th>LOS</th>
+        </tr>
+      </thead>
+      <tbody id="hour-tbody">
+        <tr><td colspan="10" style="text-align:center;color:var(--text3);padding:20px 0;font-size:0.714rem">Select a road to view hourly breakdown</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div id="predict-status" style="display:none"></div>
+</div>
+
+<!-- ══ EXPLAIN ══ -->
+<div id="panel-explain" class="panel">
+  <div class="sec-hdr">
+    <div class="ctrl-group" style="flex-direction:row;align-items:center;gap:6px">
+      <div class="ctrl-label">Repeats</div>
+      <input type="number" id="explain-repeats" value="10" min="5" max="30" style="width:60px">
+    </div>
+    <button class="btn btn-primary" id="explain-btn" onclick="runExplain()" style="margin-left:8px">Compute Importance</button>
+    <div class="spacer"></div>
+    <div id="explain-status" style="font-size:0.643rem;font-family:var(--mono);color:var(--text3)"></div>
+  </div>
+  <div class="pane-body" id="importance-card" style="display:none">
+    <div id="importance-chart"></div>
+  </div>
+  <div id="explain-empty" style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:0.714rem">
+    Click "Compute Importance" to run permutation analysis
+  </div>
+</div>
+
+<!-- ══ MONITOR ══ -->
+<div id="panel-monitor" class="panel">
+  <div class="sec-hdr">
+    <div class="sec-hdr-title">MLOps Monitor</div>
+    <div class="spacer"></div>
+    <button class="btn btn-secondary" onclick="runMonitor()">↻ Refresh</button>
+  </div>
+  <div class="pane-row" style="flex:1">
+    <!-- Drift table -->
+    <div class="pane" style="flex:1">
+      <div class="pane-header"><div class="pane-title">Data Drift (PSI / KS)</div></div>
+      <div style="flex:1;overflow-y:auto" id="drift-table-wrap">
+        <div style="color:var(--text3);font-size:0.714rem;padding:20px 10px">Click Refresh to load</div>
+      </div>
+    </div>
+    <!-- Right column -->
+    <div class="pane" style="width:300px;flex-shrink:0;display:flex;flex-direction:column">
+      <!-- Prediction drift -->
+      <div class="pane-header"><div class="pane-title">Prediction Drift</div></div>
+      <div class="pane-body" id="rolling-error-card" style="border-bottom:1px solid var(--border)">
+        <div style="color:var(--text3);font-size:0.714rem">Click Refresh to load</div>
+      </div>
+      <!-- Dataset summary -->
+      <div class="pane-header"><div class="pane-title">Dataset</div></div>
+      <div class="pane-body" id="dataset-summary" style="border-bottom:1px solid var(--border)"></div>
+      <!-- Registry -->
+      <div class="pane-header"><div class="pane-title">Model Registry</div></div>
+      <div style="flex:1;overflow-y:auto">
+        <table id="registry-table">
+          <thead><tr><th>Version</th><th>V/C MAE</th><th>LOS Acc</th></tr></thead>
+          <tbody id="registry-tbody"><tr><td colspan="3" style="color:var(--text3);text-align:center;padding:12px 0;font-size:0.714rem">No models</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- #content -->
+
+<!-- ── STATUS BAR ── -->
+<div id="statusbar">
+  <div class="sb-item"><div class="sb-dot"></div><span>System Online</span></div>
+  <div class="sb-item"><span id="sb-model">No model loaded</span></div>
+  <div class="sb-item"><span id="sb-time" style="color:var(--text3)"></span></div>
+  <div style="flex:1"></div>
+  <span style="color:var(--text3)">KL Traffic Intelligence · 14 Road Corridors</span>
+</div>
+
+<script>
+const API = '';
+let state = { predictions:null, summary:null, excelUrl:null, tuneOn:false, retrainOn:true };
+
+// ── Clock ──
+function updateClock(){
+  document.getElementById('sb-time').textContent = new Date().toLocaleTimeString('en-GB',{hour12:false});
+}
+updateClock(); setInterval(updateClock, 1000);
+
+// ── Tab ──
+function switchTab(name, el) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  if(el) el.classList.add('active');
+}
+
+// ── Toggles ──
+function toggleTune() {
+  state.tuneOn = !state.tuneOn;
+  document.getElementById('tune-toggle').classList.toggle('on', state.tuneOn);
+  document.getElementById('tune-label').textContent = state.tuneOn ? 'Enabled' : 'Disabled';
+  document.getElementById('tune-options').style.display = state.tuneOn ? 'block' : 'none';
+}
+function toggleRetrain() {
+  state.retrainOn = !state.retrainOn;
+  document.getElementById('retrain-toggle').classList.toggle('on', state.retrainOn);
+  document.getElementById('retrain-label').textContent = state.retrainOn ? 'Yes' : 'No';
+}
+
+// ── Log ──
+function logLine(boxId, text, cls='') {
+  const box = document.getElementById(boxId);
+  const line = document.createElement('div');
+  line.className = cls;
+  line.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
+  box.appendChild(line); box.scrollTop = box.scrollHeight;
+}
+function clearLog(boxId){ document.getElementById(boxId).innerHTML = ''; }
+
+function setStatus(id, msg, type='info') {
+  const el = document.getElementById(id);
+  if(!el) return;
+  const cls = type==='ok'?'alert-ok':type==='warn'?'alert-warn':type==='err'?'alert-err':'alert-warn';
+  el.innerHTML = `<div class="alert ${cls}">${msg}</div>`;
+  el.style.display = 'block';
+}
+function setInlineStatus(id, msg, color='var(--text3)') {
+  const el = document.getElementById(id);
+  if(el){ el.textContent = msg; el.style.color = color; }
+}
+
+// ── Train ──
+async function runTrain() {
+  const btn = document.getElementById('train-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spin">⟳</span> Training...';
+  clearLog('train-log');
+  logLine('train-log','Starting training pipeline...','log-info');
+
+  try {
+    const body = {
+      tune: state.tuneOn,
+      n_iter: parseInt(document.getElementById('n-iter').value),
+      n_splits: parseInt(document.getElementById('n-splits').value),
+      retrain_full: state.retrainOn,
+    };
+    const res = await fetch(API+'/train', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const data = await res.json();
+    if(data.status !== 'ok') throw new Error(data.message);
+
+    logLine('train-log',`Training complete — version: ${data.version}`,'log-ok');
+    logLine('train-log',`Train rows: ${data.train_rows.toLocaleString()} | Test rows: ${data.test_rows.toLocaleString()}`,'');
+    logLine('train-log',`V/C MAE: ${data.metrics.vc_mae} | LOS Accuracy: ${(data.metrics.los_accuracy*100).toFixed(1)}%`,'log-ok');
+    logLine('train-log',`LOS Within-1: ${(data.metrics.los_within1*100).toFixed(1)}% | V/C R²: ${data.metrics.vc_r2}`,'');
+    if(data.tuned) logLine('train-log',`Best params: ${JSON.stringify(data.tuning)}`,'log-info');
+
+    const driftBad = Object.values(data.drift||{}).filter(v=>v.status!=='stable');
+    logLine('train-log', driftBad.length > 0 ? `${driftBad.length} features show data drift` : 'No data drift detected', driftBad.length>0?'log-warn':'log-ok');
+
+    document.getElementById('model-version-badge').textContent = data.version;
+    document.getElementById('model-version-badge').className = 'sys-badge ok';
+    document.getElementById('stat-vc-mae').textContent = data.metrics.vc_mae;
+    document.getElementById('stat-los-acc').textContent = (data.metrics.los_accuracy*100).toFixed(1)+'%';
+    document.getElementById('sb-model').textContent = data.version;
+
+    renderMetricCards(data.metrics);
+    renderConfusionMatrix(data.metrics.confusion);
+    await loadVersions();
+  } catch(e) {
+    logLine('train-log','Error: '+e.message,'log-err');
+  }
+  btn.disabled = false; btn.innerHTML = '▶ Start Training';
+}
+
+function mrow(label, val) {
+  return `<div class="mrow"><span class="mlbl">${label}</span><span class="mval">${val}</span></div>`;
+}
+
+function renderMetricCards(m) {
+  document.getElementById('vc-metrics').innerHTML =
+    mrow('MAE', m.vc_mae) +
+    mrow('RMSE', m.vc_rmse) +
+    mrow('R²', m.vc_r2) +
+    mrow('Residual', m.residuals?.mean ?? '—');
+  document.getElementById('los-metrics').innerHTML =
+    mrow('Exact Acc', (m.los_accuracy*100).toFixed(1)+'%') +
+    mrow('Within-1', (m.los_within1*100).toFixed(1)+'%');
+  let html = '';
+  for(const [t,v] of Object.entries(m.per_target||{})) {
+    html += mrow(t.replace('vol_',''), `${v.mae} | R²${v.r2}`);
+  }
+  document.getElementById('per-target-metrics').innerHTML = html;
+}
+
+function renderConfusionMatrix(confusion) {
+  if(!confusion) return;
+  const labels = ['A','B','C','D','E','F'];
+  let html = '<thead><tr><th></th>';
+  labels.forEach(l => html += `<th class="tr">pred_${l}</th>`);
+  html += '<th class="tr">n</th></tr></thead><tbody>';
+  for(const [rowKey, row] of Object.entries(confusion)) {
+    html += `<tr><td><strong style="font-family:var(--mono)">${rowKey}</strong></td>`;
+    let total = 0;
+    labels.forEach(l => {
+      const v = row['pred_'+l]||0; total+=v;
+      const isMatch = rowKey.replace('actual_','') === l;
+      html += `<td class="tr" style="${isMatch&&v?'color:var(--accent)':''}">${v||''}</td>`;
+    });
+    html += `<td class="tr" style="color:var(--text3)">${total}</td></tr>`;
+  }
+  html += '</tbody>';
+  document.getElementById('confusion-table').innerHTML = html;
+  document.getElementById('confusion-card').style.display = 'block';
+}
+
+// ── Predict ──
+async function runPredict() {
+  const btn = document.getElementById('predict-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spin">⟳</span>';
+  setInlineStatus('predict-status-inline','Running prediction...','var(--yellow)');
+
+  try {
+    const body = {
+      date: document.getElementById('pred-date').value,
+      version: document.getElementById('pred-version').value,
+    };
+    const res = await fetch(API+'/predict', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const data = await res.json();
+    if(data.status !== 'ok') throw new Error(data.message);
+
+    state.summary = data.summary; state.excelUrl = data.excel_url;
+    setInlineStatus('predict-status-inline',`Model ${data.model_version} · ${data.date}`,'var(--accent)');
+    document.getElementById('download-btn').style.display = 'inline-flex';
+    document.getElementById('pred-date-label').textContent = data.date;
+
+    renderSummaryTable(data.summary);
+    renderHeatmap(data.summary);
+    populateRoadSelect(data.summary);
+
+    const congested = data.summary.filter(r=>r.peak_los==='F').length;
+    document.getElementById('stat-congested').textContent = congested+' / 14';
+
+    document.querySelectorAll('.tab')[0].click();
+  } catch(e) {
+    setInlineStatus('predict-status-inline','Error: '+e.message,'var(--red)');
+  }
+  btn.disabled = false; btn.innerHTML = 'Generate';
+}
+
+function downloadExcel() {
+  if(state.excelUrl) window.open(API + state.excelUrl);
+}
+
+const HOURS_LIST = ['12AM','1AM','2AM','3AM','4AM','5AM','6AM','7AM','8AM','9AM','10AM','11AM',
+                    '12PM','1PM','2PM','3PM','4PM','5PM','6PM','7PM','8PM','9PM','10PM','11PM'];
+const PCU = [1.0, 0.5, 1.5, 2.0, 3.0, 3.0];
+
+function vcColor(vc) {
+  if(vc <= 0.6) return '#15532a';
+  if(vc <= 0.7) return '#365314';
+  if(vc <= 0.8) return '#713f12';
+  if(vc <= 0.9) return '#7c2d12';
+  if(vc <= 1.0) return '#7f1d1d';
+  return '#450a0a';
+}
+function losFromVC(vc) {
+  if(vc<=0.6) return 'A'; if(vc<=0.7) return 'B'; if(vc<=0.8) return 'C';
+  if(vc<=0.9) return 'D'; if(vc<=1.0) return 'E'; return 'F';
+}
+
+function renderSummaryTable(summary) {
+  let html = '';
+  summary.forEach(r => {
+    const isF = r.peak_los === 'F';
+    const roadShort = r.road.replace('Jalan ','J. ').replace('Lebuhraya ','L. ');
+    html += `<tr>
+      <td title="${r.road}">${roadShort}</td>
+      <td class="tr num">${r.daily.toLocaleString()}</td>
+      <td class="tr num" style="${isF?'color:var(--red)':''}">${r.peak_vc}</td>
+      <td class="num" style="font-size:0.714rem">${r.peak_hour}</td>
+      <td class="tr num">${r.avg_vc}</td>
+      <td><span class="los los-${r.peak_los}">${r.peak_los}</span></td>
+    </tr>`;
+  });
+  document.getElementById('summary-tbody').innerHTML = html;
+}
+
+function renderHeatmap(summary) {
+  const wrap = document.getElementById('heatmap-wrap');
+  let html = '<div style="overflow-x:auto"><div class="hm-hr-labels">';
+  for(let h=0;h<24;h+=2) html += `<div class="hm-hr-lbl" style="width:46px">${HOURS_LIST[h]}</div>`;
+  html += '</div>';
+  summary.slice(0,14).forEach(r => {
+    const lbl = r.road.replace('Jalan ','J. ').replace('Lebuhraya ','L. ');
+    html += `<div class="hm-row"><div class="hm-lbl" title="${r.road}">${lbl}</div>`;
+    for(let h=0;h<24;h++) {
+      const dist = Math.min(Math.abs(h-8), Math.abs(h-18));
+      const vc = Math.max(0.05, r.peak_vc * Math.exp(-dist*0.18));
+      const color = vcColor(vc);
+      html += `<div class="hm-cell" style="background:${color}" data-tip="${lbl} ${HOURS_LIST[h]}: ~${vc.toFixed(2)} (${losFromVC(vc)})"></div>`;
+    }
+    html += '</div>';
+  });
+  html += '</div>';
+  wrap.innerHTML = html;
+}
+
+function populateRoadSelect(summary) {
+  const sel = document.getElementById('road-select');
+  sel.innerHTML = summary.map(r=>`<option value="${r.road}">${r.road}</option>`).join('');
+  sel._summaryMap = {};
+  summary.forEach(r => sel._summaryMap[r.road] = r);
+}
+
+function renderHourTable() {
+  const road = document.getElementById('road-select').value;
+  const tbody = document.getElementById('hour-tbody');
+  if(!road || !state.summary) return;
+  const row = document.getElementById('road-select')._summaryMap?.[road];
+  if(!row) return;
+  let html = '';
+  for(let h=0;h<24;h++) {
+    const dist = Math.min(Math.abs(h-8), Math.abs(h-18));
+    const vc = Math.max(0.05, row.peak_vc * Math.exp(-dist*0.18));
+    const los = losFromVC(vc);
+    html += `<tr>
+      <td class="num">${HOURS_LIST[h]}</td>
+      <td colspan="6" style="color:var(--text3);font-size:0.714rem">— run full breakdown —</td>
+      <td class="tr num">—</td>
+      <td class="tr num">${vc.toFixed(3)}</td>
+      <td><span class="los los-${los}">${los}</span></td>
+    </tr>`;
+  }
+  tbody.innerHTML = html;
+}
+
+// ── Explain ──
+async function runExplain() {
+  const btn = document.getElementById('explain-btn');
+  btn.disabled = true; btn.innerHTML = '<span class="spin">⟳</span> Computing...';
+  setInlineStatus('explain-status','Running permutation importance...','var(--yellow)');
+  document.getElementById('explain-empty').style.display = 'none';
+
+  try {
+    const n = document.getElementById('explain-repeats').value;
+    const res = await fetch(API+`/explain?n_repeats=${n}`);
+    const data = await res.json();
+    if(data.status !== 'ok') throw new Error(data.message);
+    renderImportance(data.importance);
+    setInlineStatus('explain-status',`Version: ${data.version}`,'var(--accent)');
+    document.getElementById('importance-card').style.display = 'block';
+  } catch(e) {
+    setInlineStatus('explain-status','Error: '+e.message,'var(--red)');
+    document.getElementById('explain-empty').style.display = 'flex';
+  }
+  btn.disabled = false; btn.innerHTML = 'Compute Importance';
+}
+
+function renderImportance(importance) {
+  const maxImp = Math.max(...importance.map(d=>Math.abs(d.importance)));
+  let html = '';
+  importance.forEach((d,i) => {
+    const pct = maxImp > 0 ? Math.abs(d.importance)/maxImp*100 : 0;
+    const color = i<3?'var(--accent)':i<7?'#40a060':'var(--text3)';
+    html += `<div class="imp-row">
+      <div class="imp-row-hdr">
+        <span class="imp-name" style="font-weight:${i<5?600:400}">${d.feature}</span>
+        <span class="imp-val">${d.importance.toFixed(5)} ± ${d.std.toFixed(5)}</span>
+      </div>
+      <div class="pbar"><div class="pbar-fill" style="width:${pct}%;background:${color}"></div></div>
+    </div>`;
+  });
+  document.getElementById('importance-chart').innerHTML = html;
+}
+
+// ── Monitor ──
+async function runMonitor() {
+  try {
+    const res = await fetch(API+'/monitor');
+    const data = await res.json();
+    if(data.status !== 'ok') throw new Error(data.message);
+    renderDriftTable(data.drift);
+    renderRollingError(data.rolling_vc_error);
+    renderDatasetSummary(data.dataset);
+    renderRegistry(data.model_versions);
+  } catch(e) {
+    document.getElementById('drift-table-wrap').innerHTML = `<div class="alert alert-err">${e.message}</div>`;
+  }
+}
+
+function renderDriftTable(drift) {
+  let html = '<table><thead><tr><th>Feature</th><th class="tr">KS</th><th class="tr">p-val</th><th class="tr">PSI</th><th>Status</th></tr></thead><tbody>';
+  for(const [feat,v] of Object.entries(drift||{})) {
+    html += `<tr>
+      <td class="num" style="font-size:0.714rem">${feat}</td>
+      <td class="tr num">${v.ks_stat}</td>
+      <td class="tr num">${v.ks_p}</td>
+      <td class="tr num">${v.psi}</td>
+      <td><span class="drift-pill drift-${v.status}">${v.status}</span></td>
+    </tr>`;
+  }
+  html += '</tbody></table>';
+  document.getElementById('drift-table-wrap').innerHTML = html;
+}
+
+function renderRollingError(r) {
+  const el = document.getElementById('rolling-error-card');
+  if(!r || r.status==='no_log' || r.status==='no_actual_data') {
+    el.innerHTML = `<div class="alert alert-warn">${r?.message || 'No prediction log found.'}</div>`;
+    return;
+  }
+  const cls = r.status==='alert'?'alert-err':'alert-ok';
+  el.innerHTML = `
+    <div class="alert ${cls}">Rolling V/C MAE: <strong>${r.rolling_mae}</strong></div>
+    ${mrow('Status', r.status)}
+    ${mrow('Window', r.window+' samples')}
+    ${mrow('N Samples', r.n_samples)}`;
+}
+
+function renderDatasetSummary(ds) {
+  if(!ds) return;
+  const losDist = Object.entries(ds.los_dist||{}).map(([k,v])=>`<span class="los los-${k}">${k}</span><span style="font-size:0.643rem;color:var(--text3);margin-right:4px">${v}</span>`).join('');
+  document.getElementById('dataset-summary').innerHTML =
+    mrow('Rows', ds.rows?.toLocaleString()) +
+    mrow('Roads', ds.roads) +
+    mrow('Days', ds.days) +
+    mrow('Range', ds.date_range?.join(' → ')) +
+    `<div class="mrow"><span class="mlbl">LOS Dist</span><span style="display:flex;gap:2px;align-items:center">${losDist}</span></div>`;
+}
+
+function renderRegistry(versions) {
+  if(!versions?.length) return;
+  let html = '';
+  versions.slice().reverse().forEach(v => {
+    html += `<tr>
+      <td class="num" style="font-size:0.714rem">${v.version}</td>
+      <td class="tr num">${v.vc_mae ?? '—'}</td>
+      <td class="tr num">${v.los_accuracy!=null?(v.los_accuracy*100).toFixed(1)+'%':'—'}</td>
+    </tr>`;
+  });
+  document.getElementById('registry-tbody').innerHTML = html;
+}
+
+async function loadVersions() {
+  try {
+    const res = await fetch(API+'/versions');
+    const data = await res.json();
+    if(data.status !== 'ok') return;
+    const sel = document.getElementById('pred-version');
+    sel.innerHTML = '<option value="latest">latest</option>';
+    data.versions.slice().reverse().forEach(v => {
+      const opt = document.createElement('option');
+      opt.value = v.version; opt.textContent = v.version;
+      sel.appendChild(opt);
+    });
+    if(data.versions.length) {
+      const latest = data.versions[data.versions.length-1];
+      document.getElementById('model-version-badge').textContent = latest.version;
+      document.getElementById('model-version-badge').className = 'sys-badge ok';
+      document.getElementById('sb-model').textContent = latest.version;
+      if(latest.vc_mae) document.getElementById('stat-vc-mae').textContent = latest.vc_mae;
+      if(latest.los_accuracy) document.getElementById('stat-los-acc').textContent = (latest.los_accuracy*100).toFixed(1)+'%';
+    }
+  } catch {}
+}
+
+loadVersions();
+</script>
+</body>
+</html>
